@@ -1,0 +1,41 @@
+{
+  "name": "glen-grant-backend",
+  "version": "1.0.0",
+  "description": "Backend for The Glen Grant — Bartender Notes event registration application",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node src/scripts/test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "axios": "^1.7.9",
+    "cloudinary": "^2.5.1",
+    "connect-mongo": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.9.4",
+    "multer": "^2.4.0",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "keywords": [
+    "glen-grant",
+    "bartender",
+    "event",
+    "registration"
+  ],
+  "author": "Directronics",
+  "license": "ISC"
+}

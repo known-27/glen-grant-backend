@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — The Glen Grant</title>
+  <meta name="description" content="Administrator login for The Glen Grant Bartender Notes backend." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #E8C96B;
+      --dark: #0A0A0F;
+      --dark-2: #111118;
+      --dark-3: #1A1A28;
+      --dark-4: #22223A;
+      --text: #F0EDE8;
+      --text-muted: #9896A4;
+      --border: rgba(201,168,76,0.2);
+      --error: #FF6B6B;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(201,168,76,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 80% 80%, rgba(201,168,76,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Subtle grid */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      padding: 20px;
+      animation: fadeInUp 0.6s ease;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-card {
+      background: linear-gradient(135deg, rgba(26,26,40,0.95) 0%, rgba(17,17,24,0.98) 100%);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(201,168,76,0.1) inset,
+        0 1px 0 rgba(201,168,76,0.3) inset;
+      backdrop-filter: blur(20px);
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .brand-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 8px 24px rgba(201,168,76,0.3);
+    }
+
+    .brand h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .divider {
+      width: 40px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 16px auto;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,168,76,0.15);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: var(--gold);
+      background: rgba(201,168,76,0.05);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+    }
+
+    .form-group input::placeholder {
+      color: rgba(152,150,164,0.5);
+    }
+
+    .error-banner {
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.3);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: var(--error);
+      margin-bottom: 20px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-banner.visible {
+      display: flex;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--gold), #B8912A);
+      border: none;
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--dark);
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+      margin-top: 8px;
+      box-shadow: 0 4px 20px rgba(201,168,76,0.3);
+    }
+
+    .btn-login:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(201,168,76,0.4);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 28px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="brand">
+        <div class="brand-icon">🥃</div>
+        <h1>The Glen Grant</h1>
+        <div class="divider"></div>
+        <p>Admin Dashboard</p>
+      </div>
+
+      <div class="error-banner" id="errorBanner">
+        <span>⚠️</span>
+        <span>Invalid username or password. Please try again.</span>
+      </div>
+
+      <form method="POST" action="/admin/login" id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Enter admin username"
+            autocomplete="username"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter admin password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button type="submit" class="btn-login" id="loginBtn">
+          Sign In to Dashboard
+        </button>
+      </form>
+
+      <p class="footer-note">Bartender Notes Backend • Secure Admin Access</p>
+    </div>
+  </div>
+
+  <script>
+    // Show error if redirected with ?error=1
+    if (new URLSearchParams(window.location.search).get('error') === '1') {
+      document.getElementById('errorBanner').classList.add('visible');
+    }
+
+    // Loading state on submit
+    document.getElementById('loginForm').addEventListener('submit', function () {
+      const btn = document.getElementById('loginBtn');
+      btn.textContent = 'Signing in…';
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+    });
+  </script>
+</body>
+</html>
