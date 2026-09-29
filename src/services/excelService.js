@@ -4,11 +4,19 @@ const ExcelJS = require('exceljs');
 const { downloadImageBuffer } = require('./cloudinaryService');
 
 /**
- * Excel export service.
+ * Excel export service — Glen Grant Bartender Notes.
  *
  * Generates a professionally formatted .xlsx file with embedded signature images.
- * Signatures are downloaded from Cloudinary and embedded as actual images
+ * Signatures are downloaded from Cloudinary and embedded as actual PNG images
  * (not URLs) into each submission row.
+ *
+ * Resilience design:
+ *   - If a single image download fails, that row gets "Signature unavailable"
+ *     text instead — the export continues and all other rows are included.
+ *   - Image downloads are sequential (not parallel) to avoid memory spikes on
+ *     large datasets and to be polite to Cloudinary rate limits.
+ *   - Each download has a generous 30-second timeout.
+ *   - The workbook is serialised to a Buffer in memory — no temp files needed.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,197 +24,195 @@ const { downloadImageBuffer } = require('./cloudinaryService');
 // ─────────────────────────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { header: 'S.No',             key: 'sno',             width: 8  },
-  { header: 'Submission ID',    key: 'submissionId',    width: 38 },
-  { header: 'Name',             key: 'name',            width: 28 },
-  { header: 'Outlet Name',      key: 'outletName',      width: 32 },
-  { header: 'Instagram Handle', key: 'instagramHandle', width: 26 },
-  { header: 'Testimonial',      key: 'testimonial',     width: 60 },
-  { header: 'Date',             key: 'submissionDate',  width: 14 },
-  { header: 'Time',             key: 'submissionTime',  width: 12 },
-  { header: 'Device ID',        key: 'deviceId',        width: 32 },
-  { header: 'Signature',        key: 'signature',       width: 28 },
+  { header: '#',                key: 'sno',             width: 6  },
+  { header: 'Submission ID',   key: 'submissionId',    width: 38 },
+  { header: 'Bartender Name',  key: 'name',            width: 28 },
+  { header: 'Outlet Name',     key: 'outletName',      width: 32 },
+  { header: 'Instagram',       key: 'instagramHandle', width: 24 },
+  { header: 'Testimonial',     key: 'testimonial',     width: 60 },
+  { header: 'Date',            key: 'submissionDate',  width: 14 },
+  { header: 'Time',            key: 'submissionTime',  width: 12 },
+  { header: 'Device ID',       key: 'deviceId',        width: 30 },
+  { header: 'Sync Status',     key: 'syncStatus',      width: 14 },
+  { header: 'Cloudinary URL',  key: 'signatureUrl',    width: 50 },
+  { header: 'Signature',       key: 'signature',       width: 30 },
 ];
 
-// Row height (in points) when a signature image is embedded
-const SIGNATURE_ROW_HEIGHT = 80;
-const SIGNATURE_IMG_HEIGHT = 70; // px
-const SIGNATURE_IMG_WIDTH = 200; // px
+// Signature column display dimensions
+const SIGNATURE_ROW_HEIGHT = 80;  // points
 
-// Header row styling
-const HEADER_FILL = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FF1A1A2E' }, // dark navy
-};
-const HEADER_FONT = {
-  name: 'Calibri',
-  size: 11,
-  bold: true,
-  color: { argb: 'FFFFFFFF' },
-};
-const HEADER_ALIGNMENT = {
-  vertical: 'middle',
-  horizontal: 'center',
-  wrapText: true,
-};
-
-const CELL_ALIGNMENT = {
-  vertical: 'middle',
-  horizontal: 'left',
-  wrapText: true,
-};
+// Header styling
+const HEADER_FILL   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A2B2A' } }; // dark teal
+const HEADER_FONT   = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+const HEADER_ALIGN  = { vertical: 'middle', horizontal: 'center', wrapText: true };
+const CELL_ALIGN    = { vertical: 'middle', horizontal: 'left',   wrapText: true };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Generator
+// Main generator
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Generates a fully formatted Excel workbook for all submissions.
  *
- * @param {Array} submissions - Mongoose Submission documents
+ * @param {Array}   submissions - Lean Mongoose documents (from .lean())
  * @returns {Promise<ExcelJS.Workbook>}
  */
 async function generateExcelWorkbook(submissions) {
   const workbook = new ExcelJS.Workbook();
+  workbook.creator       = 'Glen Grant — Bartender Notes';
+  workbook.lastModifiedBy= 'Glen Grant Backend';
+  workbook.created       = new Date();
+  workbook.modified      = new Date();
+  workbook.title         = 'Glen Grant Bartender Testimonials';
+  workbook.description   = 'Exported registration data from the Glen Grant Bartender Notes app.';
 
-  // Workbook metadata
-  workbook.creator = 'Glen Grant — Bartender Notes';
-  workbook.lastModifiedBy = 'Glen Grant Backend';
-  workbook.created = new Date();
-  workbook.modified = new Date();
-  workbook.title = 'Glen Grant Bartender Testimonials';
-  workbook.description = 'Exported registration data from the Glen Grant Bartender Notes app.';
-
+  // ── Main data sheet ────────────────────────────────────────────────────────
   const sheet = workbook.addWorksheet('Bartender Testimonials', {
-    views: [{ state: 'frozen', ySplit: 1 }], // Freeze header row
+    views: [{ state: 'frozen', ySplit: 1 }],
     properties: { defaultRowHeight: 20 },
   });
 
-  // Set columns
   sheet.columns = COLUMNS;
 
   // Style header row
   const headerRow = sheet.getRow(1);
-  headerRow.height = 30;
+  headerRow.height = 32;
   headerRow.eachCell((cell) => {
-    cell.fill = HEADER_FILL;
-    cell.font = HEADER_FONT;
-    cell.alignment = HEADER_ALIGNMENT;
-    cell.border = {
-      bottom: { style: 'medium', color: { argb: 'FF16213E' } },
-    };
+    cell.fill      = HEADER_FILL;
+    cell.font      = HEADER_FONT;
+    cell.alignment = HEADER_ALIGN;
+    cell.border    = { bottom: { style: 'medium', color: { argb: 'FF16213E' } } };
   });
 
-  // Enable auto filter on header row
+  // Auto-filter
   sheet.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: 1, column: COLUMNS.length },
+    to:   { row: 1, column: COLUMNS.length },
   };
 
-  // ── Add data rows ────────────────────────────────────────────────────────
+  // ── Resolve column indices (0-based) ──────────────────────────────────────
+  const sigColIdx = COLUMNS.findIndex(c => c.key === 'signature');
+  const urlColIdx = COLUMNS.findIndex(c => c.key === 'signatureUrl');
 
+  // ── Data rows — sequential to keep memory bounded ─────────────────────────
   for (let i = 0; i < submissions.length; i++) {
-    const sub = submissions[i];
-    const rowIndex = i + 2; // +2 because row 1 is header
+    const sub      = submissions[i];
+    const rowIndex = i + 2; // 1=header, data starts at 2
 
     const row = sheet.addRow({
-      sno: i + 1,
-      submissionId: sub.submissionId,
-      name: sub.name,
-      outletName: sub.outletName,
+      sno:             i + 1,
+      submissionId:    sub.submissionId   || sub.clientSubmissionId || '',
+      name:            sub.name           || '',
+      outletName:      sub.outletName     || '',
       instagramHandle: sub.instagramHandle ? `@${sub.instagramHandle}` : '',
-      testimonial: sub.testimonial,
-      submissionDate: sub.submissionDate || '',
-      submissionTime: sub.submissionTime || '',
-      deviceId: sub.deviceId,
-      signature: '', // placeholder — image embedded below
+      testimonial:     sub.testimonial    || '',
+      submissionDate:  sub.submissionDate || formatDate(sub.createdAt),
+      submissionTime:  sub.submissionTime || formatTime(sub.createdAt),
+      deviceId:        sub.deviceId       || '',
+      syncStatus:      sub.syncStatus     || '',
+      signatureUrl:    sub.signatureUrl   || '',
+      signature:       '',   // placeholder — image anchored below
     });
 
     // Alternate row shading
-    const rowFill = i % 2 === 0
-      ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F8FF' } }
-      : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-
+    const bg = i % 2 === 0 ? 'FFF5FFFF' : 'FFFFFFFF';
     row.eachCell((cell, colNumber) => {
-      cell.alignment = CELL_ALIGNMENT;
-      if (colNumber !== COLUMNS.findIndex(c => c.key === 'signature') + 1) {
-        cell.fill = rowFill;
+      cell.alignment = CELL_ALIGN;
+      cell.border    = { bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } } };
+      if (colNumber !== sigColIdx + 1) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
       }
-      cell.border = {
-        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-      };
     });
+
+    // Style Cloudinary URL column as hyperlink
+    if (sub.signatureUrl) {
+      const urlCell = sheet.getCell(rowIndex, urlColIdx + 1);
+      urlCell.font = { color: { argb: 'FF0563C1' }, underline: true, name: 'Calibri', size: 10 };
+    }
 
     row.height = SIGNATURE_ROW_HEIGHT;
 
-    // ── Embed signature image ────────────────────────────────────────────────
+    // ── Embed signature image (safe — failures do not abort the export) ──────
     if (sub.signatureUrl) {
       try {
         const imgBuffer = await downloadImageBuffer(sub.signatureUrl);
+        const imageId   = workbook.addImage({ buffer: imgBuffer, extension: 'png' });
 
-        const imageId = workbook.addImage({
-          buffer: imgBuffer,
-          extension: 'png',
-        });
-
-        // Column index for 'signature' (0-indexed within the columns array)
-        const sigColIndex = COLUMNS.findIndex(c => c.key === 'signature');
-
+        // Anchor image to fill the signature cell (with small margin)
         sheet.addImage(imageId, {
-          tl: { col: sigColIndex + 0.1, row: rowIndex - 1 + 0.1 },
-          br: { col: sigColIndex + 1 - 0.1, row: rowIndex - 0.1 },
+          tl:     { col: sigColIdx + 0.05, row: rowIndex - 1 + 0.05 },
+          br:     { col: sigColIdx + 0.95, row: rowIndex - 0.05 },
           editAs: 'oneCell',
         });
-      } catch (err) {
-        // If image download fails, write the URL as fallback text
-        console.warn(`[Excel] Could not embed signature for ${sub.submissionId}: ${err.message}`);
-        const sigColIndex = COLUMNS.findIndex(c => c.key === 'signature') + 1;
-        const cell = sheet.getCell(rowIndex, sigColIndex);
-        cell.value = sub.signatureUrl;
-        cell.font = { color: { argb: 'FF0563C1' }, underline: true };
+      } catch (imgErr) {
+        // Non-fatal: log and write fallback text in the signature cell
+        console.warn(`[Excel] Signature embed failed for row ${rowIndex} (${sub.submissionId || sub.clientSubmissionId}): ${imgErr.message}`);
+        const cell       = sheet.getCell(rowIndex, sigColIdx + 1);
+        cell.value       = 'Signature unavailable';
+        cell.font        = { color: { argb: 'FFAAAAAA' }, italic: true };
+        cell.alignment   = { vertical: 'middle', horizontal: 'center' };
       }
+    } else {
+      // No signature URL at all
+      const cell     = sheet.getCell(rowIndex, sigColIdx + 1);
+      cell.value     = 'No signature';
+      cell.font      = { color: { argb: 'FFCCCCCC' }, italic: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
     }
   }
 
-  // ── Summary sheet ────────────────────────────────────────────────────────
-
-  const summarySheet = workbook.addWorksheet('Summary');
-  summarySheet.columns = [
+  // ── Summary sheet ──────────────────────────────────────────────────────────
+  const summary = workbook.addWorksheet('Summary');
+  summary.columns = [
     { key: 'label', width: 30 },
-    { key: 'value', width: 40 },
+    { key: 'value', width: 50 },
   ];
 
-  const summaryData = [
-    ['Report Generated', new Date().toISOString()],
-    ['Total Submissions', submissions.length],
-    ['Event ID', submissions[0]?.eventId || 'N/A'],
-    ['Generated By', 'Glen Grant — Bartender Notes Backend'],
-  ];
-
-  const summaryHeaderRow = summarySheet.addRow(['Field', 'Value']);
+  const summaryHeaderRow = summary.addRow(['Field', 'Value']);
   summaryHeaderRow.eachCell((cell) => {
-    cell.fill = HEADER_FILL;
-    cell.font = HEADER_FONT;
+    cell.fill      = HEADER_FILL;
+    cell.font      = HEADER_FONT;
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
   });
 
-  summaryData.forEach(([label, value]) => {
-    const r = summarySheet.addRow({ label, value });
-    r.getCell(1).font = { bold: true };
+  [
+    ['Report Generated',    new Date().toISOString()],
+    ['Total Submissions',   submissions.length],
+    ['Event ID',            submissions[0]?.eventId || 'N/A'],
+    ['Generated By',        'Glen Grant — Bartender Notes Backend'],
+  ].forEach(([label, value]) => {
+    const r = summary.addRow({ label, value });
+    r.getCell(1).font = { bold: true, name: 'Calibri' };
   });
 
   return workbook;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Buffer serialiser
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Writes the workbook to a Buffer (for streaming to the HTTP response).
- *
+ * Writes the workbook to a Buffer for streaming to the HTTP response.
  * @param {ExcelJS.Workbook} workbook
  * @returns {Promise<Buffer>}
  */
 async function workbookToBuffer(workbook) {
   return workbook.xlsx.writeBuffer();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Date / time fallback helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatDate(d) {
+  if (!d) return '';
+  try { return new Date(d).toISOString().slice(0, 10); } catch { return ''; }
+}
+
+function formatTime(d) {
+  if (!d) return '';
+  try { return new Date(d).toISOString().slice(11, 19); } catch { return ''; }
 }
 
 module.exports = { generateExcelWorkbook, workbookToBuffer };

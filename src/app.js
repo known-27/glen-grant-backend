@@ -112,7 +112,20 @@ app.use(
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Health check — public, no auth required
+// /api/ping — public, ZERO DB queries, for Render keep-alive cron
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/ping', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'glen-grant-backend',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /api/health — lightweight MongoDB connectivity check
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/health', (req, res) => {
@@ -122,10 +135,14 @@ app.get('/api/health', (req, res) => {
     status: 'healthy',
     database: dbState,
     timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
   });
 });
+
+// /health alias (no /api prefix — common convention for platform health probes)
+app.get('/health', (req, res) => res.redirect('/api/health'));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API Routes

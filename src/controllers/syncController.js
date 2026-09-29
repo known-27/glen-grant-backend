@@ -235,4 +235,49 @@ async function syncSubmissions(req, res, next) {
   }
 }
 
-module.exports = { syncSubmissions };
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/sync/status
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns overall sync statistics for the Count screen and dashboard.
+ *
+ * Response shape:
+ * {
+ *   totalSubmissions: 125,
+ *   todaySubmissions: 32,
+ *   synced: 120,           // syncStatus = 'direct' or 'synced'
+ *   pending: 5,            // syncStatus = 'pending'
+ *   failed: 0,
+ *   timezone: 'Asia/Kolkata'
+ * }
+ */
+async function getSyncStatus(req, res, next) {
+  try {
+    const { dateStr: todayStr } = getTimezoneDate(new Date());
+    const eventId = req.query.eventId || null;
+    const baseFilter = eventId ? { eventId: eventId.trim() } : {};
+
+    const [total, today, synced, pending] = await Promise.all([
+      Submission.countDocuments(baseFilter),
+      Submission.countDocuments({ ...baseFilter, submissionDate: todayStr }),
+      Submission.countDocuments({ ...baseFilter, syncStatus: { $in: ['direct', 'synced'] } }),
+      Submission.countDocuments({ ...baseFilter, syncStatus: 'pending' }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      totalSubmissions: total,
+      todaySubmissions: today,
+      synced,
+      pending,
+      failed: 0, // server-side never stores 'failed' — that state lives on the tablet
+      date: todayStr,
+      timezone: process.env.EVENT_TIMEZONE || 'Asia/Kolkata',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { syncSubmissions, getSyncStatus };
