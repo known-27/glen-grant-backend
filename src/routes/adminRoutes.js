@@ -13,6 +13,7 @@ const {
   listSubmissions,
   getSubmissionDetail,
 } = require('../controllers/adminController');
+const { exportExcel, exportBackup } = require('../controllers/exportController');
 
 // ── Authentication ────────────────────────────────────────────────────────────
 
@@ -43,5 +44,15 @@ router.get('/api/submissions', requireAdminApi, listSubmissions);
 
 // GET /admin/api/submissions/:submissionId
 router.get('/api/submissions/:submissionId', requireAdminApi, getSubmissionDetail);
+
+// ── Session-safe Export routes (used by dashboard download buttons) ───────────
+// These use requireAdmin (HTML session guard) so the download works correctly
+// even when the /api/export routes have cookie issues in production.
+
+// GET /admin/export/excel  — Download .xlsx
+router.get('/export/excel',  requireAdmin, exportExcel);
+
+// GET /admin/export/backup — Download .zip backup
+router.get('/export/backup', requireAdmin, exportBackup);
 
 module.exports = router;

@@ -780,7 +780,7 @@
     async function downloadExcel() {
       showToast('⏳ Generating Excel file… Please wait.');
       try {
-        const res = await fetch('/api/export/excel', { credentials: 'include' });
+        const res = await fetch('/admin/export/excel', { credentials: 'include' });
         if (!res.ok) {
           let msg = `Server error: ${res.status}`;
           try {
@@ -812,7 +812,7 @@
     async function downloadBackup() {
       showToast('⏳ Generating backup ZIP… This may take a moment.');
       try {
-        const res = await fetch('/api/export/backup', { credentials: 'include' });
+        const res = await fetch('/admin/export/backup', { credentials: 'include' });
         if (!res.ok) {
           let msg = `Server error: ${res.status}`;
           try {
