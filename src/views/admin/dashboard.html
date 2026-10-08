@@ -518,12 +518,12 @@
         <span class="nav-icon">📋</span> All Submissions
       </a>
       <div class="nav-section-label">Export</div>
-      <button class="nav-link" onclick="downloadExcel()">
+      <a href="/admin/export/excel" class="nav-link">
         <span class="nav-icon">📥</span> Download Excel
-      </button>
-      <button class="nav-link" onclick="downloadBackup()">
+      </a>
+      <a href="/admin/export/backup" class="nav-link">
         <span class="nav-icon">🗜️</span> Complete Backup
-      </button>
+      </a>
       <div class="nav-section-label">System</div>
       <button class="nav-link" onclick="checkHealth()">
         <span class="nav-icon">💚</span> Health Check
@@ -584,12 +584,12 @@
 
       <!-- Action Buttons -->
       <div class="actions-row">
-        <button class="btn btn-primary" onclick="downloadExcel()">
+        <a href="/admin/export/excel" class="btn btn-primary">
           📥 Download Excel
-        </button>
-        <button class="btn btn-secondary" onclick="downloadBackup()">
+        </a>
+        <a href="/admin/export/backup" class="btn btn-secondary">
           🗜️ Complete Backup
-        </button>
+        </a>
         <a href="/admin/submissions" class="btn btn-secondary">
           📋 View All Submissions
         </a>
@@ -770,24 +770,8 @@
     }
 
     // ── Downloads ─────────────────────────────────────────────────────────────
-
-    /**
-     * Download Excel — uses direct browser navigation so the session cookie
-     * is sent automatically and the browser handles the file-save dialog.
-     * The server sets Content-Disposition: attachment which triggers the download.
-     */
-    function downloadExcel() {
-      showToast('⏳ Generating Excel file… Your download will start shortly.');
-      window.location.href = '/admin/export/excel';
-    }
-
-    /**
-     * Download Backup ZIP — same direct-navigation approach as Excel.
-     */
-    function downloadBackup() {
-      showToast('⏳ Generating backup ZIP… This may take a moment.');
-      window.location.href = '/admin/export/backup';
-    }
+    // Download buttons are plain <a href> links — no JavaScript needed.
+    // The server sets Content-Disposition: attachment which triggers the save dialog.
 
     async function checkHealth() {
       try {
