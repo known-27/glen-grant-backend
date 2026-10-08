@@ -20,6 +20,15 @@ const { downloadImageBuffer } = require('./cloudinaryService');
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Signature display dimensions
+// ─────────────────────────────────────────────────────────────────────────────
+// Column width 45 chars × 7px/char ≈ 315px; Row height 120pt × 1.333px/pt ≈ 160px
+const SIGNATURE_COL_WIDTH  = 45;    // characters (ExcelJS column width unit)
+const SIGNATURE_ROW_HEIGHT = 120;   // points
+const SIGNATURE_IMG_W      = 300;   // px — fills the cell width with a small margin
+const SIGNATURE_IMG_H      = 145;   // px — fills the cell height with a small margin
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Column definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -35,11 +44,8 @@ const COLUMNS = [
   { header: 'Device ID',       key: 'deviceId',        width: 30 },
   { header: 'Sync Status',     key: 'syncStatus',      width: 14 },
   { header: 'Cloudinary URL',  key: 'signatureUrl',    width: 50 },
-  { header: 'Signature',       key: 'signature',       width: 45 },
+  { header: 'Signature',       key: 'signature',       width: SIGNATURE_COL_WIDTH },
 ];
-
-// Signature column display dimensions
-const SIGNATURE_ROW_HEIGHT = 120;  // points — tall enough to display signature clearly
 
 // Header styling
 const HEADER_FILL   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A2B2A' } }; // dark teal
@@ -138,11 +144,12 @@ async function generateExcelWorkbook(submissions) {
         const imgBuffer = await downloadImageBuffer(sub.signatureUrl);
         const imageId   = workbook.addImage({ buffer: imgBuffer, extension: 'png' });
 
-        // Anchor image to fill the signature cell (twoCell = stretches to fit tl→br bounds)
+        // Use explicit pixel dimensions (ext) — the ONLY reliable way in ExcelJS
+        // to control image size. tl/br with twoCell does not reliably stretch images.
         sheet.addImage(imageId, {
-          tl:     { col: sigColIdx + 0.02, row: rowIndex - 1 + 0.02 },
-          br:     { col: sigColIdx + 0.98, row: rowIndex      - 0.02 },
-          editAs: 'twoCell',
+          tl:     { col: sigColIdx + 0.08, row: rowIndex - 1 + 0.08 },
+          ext:    { width: SIGNATURE_IMG_W, height: SIGNATURE_IMG_H },
+          editAs: 'oneCell',
         });
       } catch (imgErr) {
         // Non-fatal: log and write fallback text in the signature cell
