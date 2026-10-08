@@ -772,70 +772,21 @@
     // ── Downloads ─────────────────────────────────────────────────────────────
 
     /**
-     * Download Excel — uses fetch to probe for auth/error first,
-     * then triggers a browser download via a temporary <a> element.
-     * This approach shows a proper error message if the server returns
-     * a JSON error (401, 500) instead of silently failing.
+     * Download Excel — uses direct browser navigation so the session cookie
+     * is sent automatically and the browser handles the file-save dialog.
+     * The server sets Content-Disposition: attachment which triggers the download.
      */
-    async function downloadExcel() {
-      showToast('⏳ Generating Excel file… Please wait.');
-      try {
-        const res = await fetch('/admin/export/excel', { credentials: 'include' });
-        if (!res.ok) {
-          let msg = `Server error: ${res.status}`;
-          try {
-            const j = await res.json();
-            if (j && j.error && j.error.message) msg = j.error.message;
-          } catch (_) {}
-          showToast('❌ Excel export failed: ' + msg, 5000);
-          return;
-        }
-        const blob = await res.blob();
-        const date = new Date().toISOString().slice(0, 10);
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `GlenGrant_Registrations_${date}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('✅ Excel downloaded successfully!');
-      } catch (e) {
-        showToast('❌ Excel export failed: ' + e.message, 5000);
-      }
+    function downloadExcel() {
+      showToast('⏳ Generating Excel file… Your download will start shortly.');
+      window.location.href = '/admin/export/excel';
     }
 
     /**
-     * Download Backup ZIP — same approach as Excel download.
+     * Download Backup ZIP — same direct-navigation approach as Excel.
      */
-    async function downloadBackup() {
+    function downloadBackup() {
       showToast('⏳ Generating backup ZIP… This may take a moment.');
-      try {
-        const res = await fetch('/admin/export/backup', { credentials: 'include' });
-        if (!res.ok) {
-          let msg = `Server error: ${res.status}`;
-          try {
-            const j = await res.json();
-            if (j && j.error && j.error.message) msg = j.error.message;
-          } catch (_) {}
-          showToast('❌ Backup failed: ' + msg, 5000);
-          return;
-        }
-        const blob = await res.blob();
-        const date = new Date().toISOString().slice(0, 10);
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `GlenGrant_Backup_${date}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('✅ Backup downloaded successfully!');
-      } catch (e) {
-        showToast('❌ Backup failed: ' + e.message, 5000);
-      }
+      window.location.href = '/admin/export/backup';
     }
 
     async function checkHealth() {
