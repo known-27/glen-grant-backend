@@ -35,11 +35,11 @@ const COLUMNS = [
   { header: 'Device ID',       key: 'deviceId',        width: 30 },
   { header: 'Sync Status',     key: 'syncStatus',      width: 14 },
   { header: 'Cloudinary URL',  key: 'signatureUrl',    width: 50 },
-  { header: 'Signature',       key: 'signature',       width: 30 },
+  { header: 'Signature',       key: 'signature',       width: 45 },
 ];
 
 // Signature column display dimensions
-const SIGNATURE_ROW_HEIGHT = 80;  // points
+const SIGNATURE_ROW_HEIGHT = 120;  // points — tall enough to display signature clearly
 
 // Header styling
 const HEADER_FILL   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A2B2A' } }; // dark teal
@@ -138,11 +138,11 @@ async function generateExcelWorkbook(submissions) {
         const imgBuffer = await downloadImageBuffer(sub.signatureUrl);
         const imageId   = workbook.addImage({ buffer: imgBuffer, extension: 'png' });
 
-        // Anchor image to fill the signature cell (with small margin)
+        // Anchor image to fill the signature cell (twoCell = stretches to fit tl→br bounds)
         sheet.addImage(imageId, {
-          tl:     { col: sigColIdx + 0.05, row: rowIndex - 1 + 0.05 },
-          br:     { col: sigColIdx + 0.95, row: rowIndex - 0.05 },
-          editAs: 'oneCell',
+          tl:     { col: sigColIdx + 0.02, row: rowIndex - 1 + 0.02 },
+          br:     { col: sigColIdx + 0.98, row: rowIndex      - 0.02 },
+          editAs: 'twoCell',
         });
       } catch (imgErr) {
         // Non-fatal: log and write fallback text in the signature cell
