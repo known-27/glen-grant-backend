@@ -75,8 +75,9 @@ const SubmissionSchema = new Schema(
 
     instagramHandle: {
       type: String,
-      required: [true, 'Instagram handle is required.'],
+      required: false,  // Optional — bartender may choose to skip
       trim: true,
+      default: '',
       maxlength: [100, 'Instagram handle must not exceed 100 characters.'],
     },
 

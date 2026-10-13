@@ -58,13 +58,11 @@ function validateOutletName(value) {
 }
 
 function validateInstagramHandle(value) {
+  // Optional field — skip validation if not provided
   if (!value || typeof value !== 'string' || !value.trim()) {
-    return 'Instagram handle is required.';
+    return null;
   }
   const cleaned = normaliseInstagram(value);
-  if (cleaned.length === 0) {
-    return 'Instagram handle is required.';
-  }
   if (cleaned.length > 100) {
     return 'Instagram handle must not exceed 100 characters.';
   }
@@ -160,7 +158,7 @@ function validateSubmission(req, res, next) {
   req.submissionData = {
     name: name.trim(),
     outletName: outletName.trim(),
-    instagramHandle: normaliseInstagram(instagramHandle),
+    instagramHandle: instagramHandle ? normaliseInstagram(instagramHandle) : '',
     testimonial: testimonial.trim(),
     deviceId: deviceId.trim(),
     clientSubmissionId: clientSubmissionId.trim(),
